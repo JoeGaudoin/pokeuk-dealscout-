@@ -22,13 +22,14 @@ async def health_check_detailed():
     Detailed health check with database and Redis status.
     """
     from sqlalchemy import text
-    from ..database import AsyncSessionLocal
+    from ..database import get_session_maker
     from ..redis_client import cache
 
     # Check PostgreSQL
     postgres_ok = False
     try:
-        async with AsyncSessionLocal() as db:
+        session_maker = get_session_maker()
+        async with session_maker() as db:
             await db.execute(text("SELECT 1"))
             postgres_ok = True
     except Exception:

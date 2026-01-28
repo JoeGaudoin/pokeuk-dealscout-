@@ -1,16 +1,23 @@
 import redis.asyncio as redis
-from .config import get_settings
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
-settings = get_settings()
+_redis_client = None
 
-redis_client = redis.from_url(
-    settings.redis_url,
-    encoding="utf-8",
-    decode_responses=True,
-)
+
+def get_redis_client():
+    """Lazily create Redis client."""
+    global _redis_client
+    if _redis_client is None:
+        from .config import get_settings
+        settings = get_settings()
+        _redis_client = redis.from_url(
+            settings.redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+    return _redis_client
 
 
 # Redis key prefixes
@@ -23,8 +30,14 @@ CARD_PRICE_PREFIX = "card:price:"
 class RedisCache:
     """Redis cache operations for deals and prices."""
 
-    def __init__(self, client: redis.Redis = redis_client):
-        self.client = client
+    def __init__(self, client: Optional[redis.Redis] = None):
+        self._client = client
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = get_redis_client()
+        return self._client
 
     async def cache_deal(self, deal_data: dict, ttl: int = 300) -> None:
         """
