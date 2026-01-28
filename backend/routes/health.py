@@ -1,24 +1,36 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-
-from ..database import get_db
-from ..redis_client import cache
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
 
 @router.get("/health")
-async def health_check(db: AsyncSession = Depends(get_db)):
+async def health_check():
     """
-    Health check endpoint.
-    Returns status of API, database, and Redis connections.
+    Basic health check endpoint.
+    Returns 200 if the API is running.
     """
+    return JSONResponse(
+        content={"status": "healthy", "service": "pokeuk-dealscout-api"},
+        status_code=200
+    )
+
+
+@router.get("/health/detailed")
+async def health_check_detailed():
+    """
+    Detailed health check with database and Redis status.
+    """
+    from sqlalchemy import text
+    from ..database import AsyncSessionLocal
+    from ..redis_client import cache
+
     # Check PostgreSQL
     postgres_ok = False
     try:
-        await db.execute(text("SELECT 1"))
-        postgres_ok = True
+        async with AsyncSessionLocal() as db:
+            await db.execute(text("SELECT 1"))
+            postgres_ok = True
     except Exception:
         pass
 

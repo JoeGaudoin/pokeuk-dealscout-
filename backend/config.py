@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     All settings can be overridden via .env file or environment.
     """
 
-    # Database
+    # Database - Railway provides DATABASE_URL
     database_url: str = Field(
         default="postgresql+asyncpg://pokeuk:pokeuk_dev_password@localhost:5432/pokeuk_dealscout",
         description="PostgreSQL connection string (async)"
@@ -19,6 +19,16 @@ class Settings(BaseSettings):
         default="redis://localhost:6379/0",
         description="Redis connection string"
     )
+
+    @property
+    def async_database_url(self) -> str:
+        """Convert standard postgres URL to asyncpg format."""
+        url = self.database_url
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        return url
 
     # eBay API
     ebay_app_id: str = Field(default="", description="eBay Application ID")
