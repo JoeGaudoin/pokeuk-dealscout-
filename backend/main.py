@@ -2,14 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-# Minimal app for testing deployment
 app = FastAPI(
     title="PokeUK DealScout API",
     description="Real-time Pokemon TCG arbitrage platform for the UK market",
     version="0.1.0",
 )
 
-# CORS configuration
+# CORS configuration - allow all origins for now
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,7 +24,7 @@ async def root():
     return {
         "name": "PokeUK DealScout API",
         "version": "0.1.0",
-        "status": "running",
+        "docs": "/docs",
     }
 
 
@@ -33,3 +32,18 @@ async def root():
 async def health():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+# Try to load full routes - fail gracefully if there are issues
+try:
+    from backend.routes import health as health_router
+    from backend.routes import deals, cards, sets
+
+    app.include_router(health_router.router, tags=["Health"])
+    app.include_router(deals.router, prefix="/deals", tags=["Deals"])
+    app.include_router(cards.router, prefix="/cards", tags=["Cards"])
+    app.include_router(sets.router, prefix="/sets", tags=["Sets"])
+    print("All routes loaded successfully")
+except Exception as e:
+    print(f"Warning: Could not load all routes: {e}")
+    # App will still work with basic /health endpoint
