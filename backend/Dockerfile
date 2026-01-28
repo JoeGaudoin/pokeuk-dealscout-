@@ -22,5 +22,5 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Run with uvicorn
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run with uvicorn - use PORT env var for Railway, default to 8000
+CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
