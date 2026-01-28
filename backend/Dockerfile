@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend application code
 COPY backend/ ./backend/
 
+# Set Python path so 'backend' package can be found
+ENV PYTHONPATH=/app
+
 # Create non-root user
 RUN useradd --create-home appuser && chown -R appuser:appuser /app
 USER appuser
