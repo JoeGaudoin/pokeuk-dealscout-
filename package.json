@@ -1,0 +1,17 @@
+{
+  "name": "project-catch-em-all",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@railway/cli": "^4.27.4",
+    "vercel": "^50.9.0"
+  }
+}
