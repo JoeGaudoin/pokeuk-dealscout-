@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pokeuk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:-pokeuk_dealscout}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pokeuk -d pokeuk_dealscout"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-pokeuk}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pokeuk_dealscout}
+      REDIS_URL: redis://redis:6379/0
+      EBAY_APP_ID: ${EBAY_APP_ID:-}
+      EBAY_CERT_ID: ${EBAY_CERT_ID:-}
+      EBAY_OAUTH_TOKEN: ${EBAY_OAUTH_TOKEN:-}
+      POKEMON_TCG_API_KEY: ${POKEMON_TCG_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Scraper Worker
+  scraper:
+    build:
+      context: ./scrapers
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-pokeuk}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pokeuk_dealscout}
+      REDIS_URL: redis://redis:6379/0
+      EBAY_APP_ID: ${EBAY_APP_ID:-}
+      EBAY_CERT_ID: ${EBAY_CERT_ID:-}
+      EBAY_OAUTH_TOKEN: ${EBAY_OAUTH_TOKEN:-}
+      PROXY_ENABLED: ${PROXY_ENABLED:-false}
+      PROXY_SERVICE_URL: ${PROXY_SERVICE_URL:-}
+      SCRAPER_EBAY_ENABLED: ${SCRAPER_EBAY_ENABLED:-true}
+      SCRAPER_CARDMARKET_ENABLED: ${SCRAPER_CARDMARKET_ENABLED:-true}
+      SCRAPER_MAGICMADHOUSE_ENABLED: ${SCRAPER_MAGICMADHOUSE_ENABLED:-true}
+      SCRAPER_CHAOSCARDS_ENABLED: ${SCRAPER_CHAOSCARDS_ENABLED:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

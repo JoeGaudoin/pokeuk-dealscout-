@@ -1,0 +1,44 @@
+# Fly.io configuration for backend API
+# Deploy with: fly launch
+
+app = "pokeuk-dealscout-api"
+primary_region = "lhr"  # London
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8000
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+  [[services.http_checks]]
+    interval = 10000
+    grace_period = "10s"
+    method = "get"
+    path = "/health"
+    protocol = "http"
+    timeout = 2000
