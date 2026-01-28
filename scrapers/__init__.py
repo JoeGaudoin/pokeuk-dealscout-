@@ -8,6 +8,8 @@ from .cardmarket import CardmarketScraper, create_cardmarket_scraper
 from .vinted import VintedScraper, create_vinted_scraper
 from .magic_madhouse import MagicMadhouseScraper, create_magicmadhouse_scraper
 from .chaos_cards import ChaosCardsScraper, create_chaoscards_scraper
+from .proxy_manager import ProxyManager, ProxyConfig, create_proxy_manager
+from .scheduler import ScraperScheduler, create_scheduler
 
 __all__ = [
     # Base
@@ -40,4 +42,11 @@ __all__ = [
     # Chaos Cards
     "ChaosCardsScraper",
     "create_chaoscards_scraper",
+    # Proxy
+    "ProxyManager",
+    "ProxyConfig",
+    "create_proxy_manager",
+    # Scheduler
+    "ScraperScheduler",
+    "create_scheduler",
 ]
