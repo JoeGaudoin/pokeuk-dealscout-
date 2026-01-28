@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 15, 15, 26;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 203, 5, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 203, 5, 0.7);
+}
+
+/* Deal score colors */
+.deal-score-excellent {
+  @apply text-green-400;
+}
+
+.deal-score-good {
+  @apply text-yellow-400;
+}
+
+.deal-score-fair {
+  @apply text-orange-400;
+}
+
+.deal-score-poor {
+  @apply text-red-400;
+}
+
+/* Platform badges */
+.platform-ebay {
+  @apply bg-blue-600;
+}
+
+.platform-cardmarket {
+  @apply bg-orange-600;
+}
+
+.platform-vinted {
+  @apply bg-teal-600;
+}
+
+.platform-magicmadhouse {
+  @apply bg-purple-600;
+}
+
+.platform-chaoscards {
+  @apply bg-red-600;
+}
+
+/* Condition badges */
+.condition-nm {
+  @apply bg-green-600;
+}
+
+.condition-lp {
+  @apply bg-yellow-600;
+}
+
+.condition-mp {
+  @apply bg-orange-600;
+}
+
+.condition-hp {
+  @apply bg-red-600;
+}
+
+.condition-dmg {
+  @apply bg-gray-600;
+}
