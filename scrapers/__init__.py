@@ -6,6 +6,8 @@ from .sync_cards import CardSyncService, POPULAR_SETS
 from .playwright_base import PlaywrightScraper, PLAYWRIGHT_AVAILABLE
 from .cardmarket import CardmarketScraper, create_cardmarket_scraper
 from .vinted import VintedScraper, create_vinted_scraper
+from .magic_madhouse import MagicMadhouseScraper, create_magicmadhouse_scraper
+from .chaos_cards import ChaosCardsScraper, create_chaoscards_scraper
 
 __all__ = [
     # Base
@@ -32,4 +34,10 @@ __all__ = [
     # Vinted
     "VintedScraper",
     "create_vinted_scraper",
+    # Magic Madhouse
+    "MagicMadhouseScraper",
+    "create_magicmadhouse_scraper",
+    # Chaos Cards
+    "ChaosCardsScraper",
+    "create_chaoscards_scraper",
 ]
