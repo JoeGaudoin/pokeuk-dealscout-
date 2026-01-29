@@ -1,7 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="PokeUK DealScout API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start background scraper
+    from backend.scraper import start_background_scraper
+    start_background_scraper()
+    print("Background scraper started")
+    yield
+    # Shutdown
+    print("Shutting down")
+
+
+app = FastAPI(title="PokeUK DealScout API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,6 +48,33 @@ async def create_tables():
         return {"status": "success", "message": "Tables created!"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@app.get("/run-scraper")
+async def run_scraper():
+    """Manually trigger the eBay scraper."""
+    try:
+        from backend.scraper import EbayScraperSimple
+        scraper = EbayScraperSimple()
+
+        if not scraper.is_configured():
+            return {"status": "error", "message": "eBay API not configured. Add EBAY_APP_ID and EBAY_CERT_ID to Railway variables."}
+
+        count = await scraper.fetch_and_save()
+        return {"status": "success", "message": f"Scraped and saved {count} new deals"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/scraper-status")
+async def scraper_status():
+    """Check if eBay scraper is configured."""
+    import os
+    return {
+        "ebay_configured": bool(os.getenv("EBAY_APP_ID") and os.getenv("EBAY_CERT_ID")),
+        "ebay_app_id_set": bool(os.getenv("EBAY_APP_ID")),
+        "ebay_cert_id_set": bool(os.getenv("EBAY_CERT_ID")),
+    }
 
 
 # Load API routes
