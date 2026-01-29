@@ -34,29 +34,6 @@ async def health():
     return {"status": "healthy"}
 
 
-@app.get("/run-migrations")
-async def run_migrations():
-    """One-time endpoint to run database migrations."""
-    import subprocess
-    try:
-        result = subprocess.run(
-            ["alembic", "-c", "/app/backend/alembic.ini", "upgrade", "head"],
-            cwd="/app/backend",
-            capture_output=True,
-            text=True,
-            timeout=60,
-            env={**os.environ, "PYTHONPATH": "/app"}
-        )
-        return {
-            "status": "success" if result.returncode == 0 else "error",
-            "output": result.stdout,
-            "errors": result.stderr,
-            "return_code": result.returncode
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
 # Try to load full routes - fail gracefully if there are issues
 try:
     from backend.routes import health as health_router
