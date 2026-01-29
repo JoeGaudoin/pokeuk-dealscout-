@@ -26,6 +26,22 @@ async def health():
     return {"status": "healthy"}
 
 
+@app.get("/setup-database")
+async def setup_database():
+    """Create all database tables."""
+    try:
+        from backend.database import get_engine, Base
+        from backend.models import Card, Deal, DealHistory, PokemonSet
+
+        engine = get_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        return {"status": "success", "message": "Database tables created"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 # Load routes
 try:
     from backend.routes import deals, cards, sets
