@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Optional
 from enum import Enum
 
-from shared.constants import KEYWORD_BLACKLIST
+from backend.constants import KEYWORD_BLACKLIST
 
 
 class FilterReason(str, Enum):

@@ -6,7 +6,7 @@ from typing import Optional
 from ..database import get_db
 from ..models import PokemonSet
 from ..schemas.pokemon_set import SetResponse, SetListResponse
-from shared.constants import SET_ERAS
+from backend.constants import SET_ERAS
 
 router = APIRouter()
 

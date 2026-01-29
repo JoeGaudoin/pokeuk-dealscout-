@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 from enum import Enum
 
-from shared.constants import CONDITION_MAPPINGS
+from backend.constants import CONDITION_MAPPINGS
 
 
 class Condition(str, Enum):

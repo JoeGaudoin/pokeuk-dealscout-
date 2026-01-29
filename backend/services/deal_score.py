@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Optional
 from enum import Enum
 
-from shared.constants import PLATFORM_FEES, CONDITION_MAPPINGS
+from backend.constants import PLATFORM_FEES, CONDITION_MAPPINGS
 
 
 class Platform(str, Enum):
