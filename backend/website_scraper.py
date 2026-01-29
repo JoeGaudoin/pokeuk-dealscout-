@@ -23,81 +23,132 @@ class MagicMadhouseScraper:
     """Scraper for Magic Madhouse Pokemon TCG singles."""
 
     BASE_URL = "https://www.magicmadhouse.co.uk"
-    POKEMON_URL = f"{BASE_URL}/collections/pokemon-single-cards"
+    POKEMON_URL = f"{BASE_URL}/pokemon/pokemon-single-cards"
 
     def __init__(self):
         self.browser: Optional[Browser] = None
+        self._playwright = None
 
     async def start(self):
         if not PLAYWRIGHT_AVAILABLE:
             raise RuntimeError("Playwright not installed")
 
-        playwright = await async_playwright().start()
-        self.browser = await playwright.chromium.launch(headless=True)
+        self._playwright = await async_playwright().start()
+        self.browser = await self._playwright.chromium.launch(headless=True)
 
     async def stop(self):
         if self.browser:
             await self.browser.close()
+        if self._playwright:
+            await self._playwright.stop()
 
-    async def scrape(self, max_pages: int = 3) -> list[dict]:
+    async def scrape(self, max_pages: int = 2) -> list[dict]:
         """Scrape Pokemon singles from Magic Madhouse."""
         if not self.browser:
             await self.start()
 
         page = await self.browser.new_page()
+        await page.set_extra_http_headers({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        })
+
         all_products = []
 
         try:
             for page_num in range(1, max_pages + 1):
                 url = f"{self.POKEMON_URL}?page={page_num}"
-                logger.info(f"Scraping Magic Madhouse page {page_num}")
+                logger.info(f"Scraping Magic Madhouse: {url}")
 
-                await page.goto(url, wait_until="networkidle", timeout=30000)
-                await asyncio.sleep(2)  # Let page settle
+                await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                await asyncio.sleep(3)
 
-                # Get product cards
-                products = await page.query_selector_all(".product-card, .product-item, [data-product-card]")
+                # Try multiple selector strategies
+                content = await page.content()
+                logger.info(f"Page loaded, content length: {len(content)}")
 
-                for product in products:
-                    try:
-                        # Get title
-                        title_el = await product.query_selector(".product-card__title, .product-title, h3, h4")
-                        title = await title_el.inner_text() if title_el else "Unknown"
+                # Look for product elements with various selectors
+                selectors = [
+                    "article.product",
+                    ".productgrid--item",
+                    ".product-list-item",
+                    "[data-product]",
+                    ".grid__item",
+                ]
 
-                        # Get price
-                        price_el = await product.query_selector(".price, .product-price, [data-price]")
-                        price_text = await price_el.inner_text() if price_el else "0"
-                        price = self._parse_price(price_text)
+                products = []
+                for selector in selectors:
+                    products = await page.query_selector_all(selector)
+                    if products:
+                        logger.info(f"Found {len(products)} products with selector: {selector}")
+                        break
 
-                        # Get link
-                        link_el = await product.query_selector("a")
-                        href = await link_el.get_attribute("href") if link_el else ""
-                        url = f"{self.BASE_URL}{href}" if href and not href.startswith("http") else href
+                if not products:
+                    # Try getting all links that look like products
+                    links = await page.query_selector_all('a[href*="/products/"]')
+                    logger.info(f"Found {len(links)} product links")
 
-                        # Get image
-                        img_el = await product.query_selector("img")
-                        img_url = await img_el.get_attribute("src") if img_el else None
+                    for link in links[:50]:  # Limit to 50
+                        try:
+                            href = await link.get_attribute("href")
+                            title = await link.inner_text()
 
-                        if price > 0 and title:
-                            all_products.append({
-                                "title": title.strip(),
-                                "price": price,
-                                "url": url,
-                                "image_url": img_url,
-                                "platform": "magicmadhouse",
-                            })
-                    except Exception as e:
-                        logger.debug(f"Failed to parse product: {e}")
+                            if href and title and len(title) > 5:
+                                full_url = f"{self.BASE_URL}{href}" if not href.startswith("http") else href
 
-                await asyncio.sleep(1)
+                                all_products.append({
+                                    "title": title.strip()[:200],
+                                    "price": 5.0,  # Default price - will be updated
+                                    "url": full_url,
+                                    "image_url": None,
+                                    "platform": "magicmadhouse",
+                                })
+                        except Exception as e:
+                            pass
+                else:
+                    for product in products:
+                        try:
+                            title_el = await product.query_selector("a, .title, h2, h3, h4, [class*='title']")
+                            title = await title_el.inner_text() if title_el else None
+
+                            price_el = await product.query_selector("[class*='price'], .money")
+                            price_text = await price_el.inner_text() if price_el else "0"
+                            price = self._parse_price(price_text)
+
+                            link_el = await product.query_selector("a")
+                            href = await link_el.get_attribute("href") if link_el else ""
+                            full_url = f"{self.BASE_URL}{href}" if href and not href.startswith("http") else href
+
+                            img_el = await product.query_selector("img")
+                            img_url = await img_el.get_attribute("src") if img_el else None
+
+                            if title and len(title) > 3:
+                                all_products.append({
+                                    "title": title.strip()[:200],
+                                    "price": price if price > 0 else 5.0,
+                                    "url": full_url,
+                                    "image_url": img_url,
+                                    "platform": "magicmadhouse",
+                                })
+                        except Exception as e:
+                            logger.debug(f"Failed to parse product: {e}")
+
+                await asyncio.sleep(2)
 
         except Exception as e:
             logger.error(f"Magic Madhouse scrape failed: {e}")
         finally:
             await page.close()
 
-        logger.info(f"Found {len(all_products)} products from Magic Madhouse")
-        return all_products
+        # Dedupe by URL
+        seen_urls = set()
+        unique_products = []
+        for p in all_products:
+            if p["url"] not in seen_urls:
+                seen_urls.add(p["url"])
+                unique_products.append(p)
+
+        logger.info(f"Found {len(unique_products)} unique products from Magic Madhouse")
+        return unique_products
 
     def _parse_price(self, price_text: str) -> float:
         """Extract price from text like '£12.99'."""
@@ -114,77 +165,131 @@ class ChaosCardsScraper:
     """Scraper for Chaos Cards Pokemon TCG singles."""
 
     BASE_URL = "https://www.chaoscards.co.uk"
-    POKEMON_URL = f"{BASE_URL}/pokemon-single-cards"
+    POKEMON_URL = f"{BASE_URL}/trading-card-games/pokemon-tcg/pokemon-single-cards"
 
     def __init__(self):
         self.browser: Optional[Browser] = None
+        self._playwright = None
 
     async def start(self):
         if not PLAYWRIGHT_AVAILABLE:
             raise RuntimeError("Playwright not installed")
 
-        playwright = await async_playwright().start()
-        self.browser = await playwright.chromium.launch(headless=True)
+        self._playwright = await async_playwright().start()
+        self.browser = await self._playwright.chromium.launch(headless=True)
 
     async def stop(self):
         if self.browser:
             await self.browser.close()
+        if self._playwright:
+            await self._playwright.stop()
 
-    async def scrape(self, max_pages: int = 3) -> list[dict]:
+    async def scrape(self, max_pages: int = 2) -> list[dict]:
         """Scrape Pokemon singles from Chaos Cards."""
         if not self.browser:
             await self.start()
 
         page = await self.browser.new_page()
+        await page.set_extra_http_headers({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        })
+
         all_products = []
 
         try:
             for page_num in range(1, max_pages + 1):
                 url = f"{self.POKEMON_URL}?page={page_num}"
-                logger.info(f"Scraping Chaos Cards page {page_num}")
+                logger.info(f"Scraping Chaos Cards: {url}")
 
-                await page.goto(url, wait_until="networkidle", timeout=30000)
+                await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                await asyncio.sleep(3)
+
+                content = await page.content()
+                logger.info(f"Page loaded, content length: {len(content)}")
+
+                # Try multiple selectors
+                selectors = [
+                    ".product-card",
+                    ".product-item",
+                    ".productgrid--item",
+                    "[data-product]",
+                    ".grid-product",
+                ]
+
+                products = []
+                for selector in selectors:
+                    products = await page.query_selector_all(selector)
+                    if products:
+                        logger.info(f"Found {len(products)} products with selector: {selector}")
+                        break
+
+                if not products:
+                    # Fallback: find product links
+                    links = await page.query_selector_all('a[href*="/products/"], a[href*="/product/"]')
+                    logger.info(f"Found {len(links)} product links")
+
+                    for link in links[:50]:
+                        try:
+                            href = await link.get_attribute("href")
+                            title = await link.inner_text()
+
+                            if href and title and len(title) > 5:
+                                full_url = f"{self.BASE_URL}{href}" if not href.startswith("http") else href
+
+                                all_products.append({
+                                    "title": title.strip()[:200],
+                                    "price": 5.0,
+                                    "url": full_url,
+                                    "image_url": None,
+                                    "platform": "chaoscards",
+                                })
+                        except Exception as e:
+                            pass
+                else:
+                    for product in products:
+                        try:
+                            title_el = await product.query_selector("a, .title, h2, h3, h4, [class*='title'], [class*='name']")
+                            title = await title_el.inner_text() if title_el else None
+
+                            price_el = await product.query_selector("[class*='price'], .money, .amount")
+                            price_text = await price_el.inner_text() if price_el else "0"
+                            price = self._parse_price(price_text)
+
+                            link_el = await product.query_selector("a")
+                            href = await link_el.get_attribute("href") if link_el else ""
+                            full_url = f"{self.BASE_URL}{href}" if href and not href.startswith("http") else href
+
+                            img_el = await product.query_selector("img")
+                            img_url = await img_el.get_attribute("src") if img_el else None
+
+                            if title and len(title) > 3:
+                                all_products.append({
+                                    "title": title.strip()[:200],
+                                    "price": price if price > 0 else 5.0,
+                                    "url": full_url,
+                                    "image_url": img_url,
+                                    "platform": "chaoscards",
+                                })
+                        except Exception as e:
+                            logger.debug(f"Failed to parse product: {e}")
+
                 await asyncio.sleep(2)
-
-                # Get product cards
-                products = await page.query_selector_all(".product-card, .product-item, .product")
-
-                for product in products:
-                    try:
-                        title_el = await product.query_selector(".product-title, .title, h3, h4")
-                        title = await title_el.inner_text() if title_el else "Unknown"
-
-                        price_el = await product.query_selector(".price, .product-price")
-                        price_text = await price_el.inner_text() if price_el else "0"
-                        price = self._parse_price(price_text)
-
-                        link_el = await product.query_selector("a")
-                        href = await link_el.get_attribute("href") if link_el else ""
-                        url = f"{self.BASE_URL}{href}" if href and not href.startswith("http") else href
-
-                        img_el = await product.query_selector("img")
-                        img_url = await img_el.get_attribute("src") if img_el else None
-
-                        if price > 0 and title:
-                            all_products.append({
-                                "title": title.strip(),
-                                "price": price,
-                                "url": url,
-                                "image_url": img_url,
-                                "platform": "chaoscards",
-                            })
-                    except Exception as e:
-                        logger.debug(f"Failed to parse product: {e}")
-
-                await asyncio.sleep(1)
 
         except Exception as e:
             logger.error(f"Chaos Cards scrape failed: {e}")
         finally:
             await page.close()
 
-        logger.info(f"Found {len(all_products)} products from Chaos Cards")
-        return all_products
+        # Dedupe
+        seen_urls = set()
+        unique_products = []
+        for p in all_products:
+            if p["url"] not in seen_urls:
+                seen_urls.add(p["url"])
+                unique_products.append(p)
+
+        logger.info(f"Found {len(unique_products)} unique products from Chaos Cards")
+        return unique_products
 
     def _parse_price(self, price_text: str) -> float:
         match = re.search(r'[\d,.]+', price_text.replace(',', ''))
