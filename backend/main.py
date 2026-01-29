@@ -40,11 +40,12 @@ async def run_migrations():
     import subprocess
     try:
         result = subprocess.run(
-            ["alembic", "upgrade", "head"],
+            ["alembic", "-c", "/app/backend/alembic.ini", "upgrade", "head"],
             cwd="/app/backend",
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
+            env={**os.environ, "PYTHONPATH": "/app"}
         )
         return {
             "status": "success" if result.returncode == 0 else "error",
