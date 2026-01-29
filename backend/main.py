@@ -47,3 +47,4 @@ try:
     print("API routes loaded")
 except Exception as e:
     print(f"Route error: {e}")
+
