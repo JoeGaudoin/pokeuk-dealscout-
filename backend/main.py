@@ -48,3 +48,19 @@ try:
 except Exception as e:
     print(f"Route error: {e}")
 
+
+@app.get("/create-tables")
+async def create_tables():
+    """Create all database tables."""
+    try:
+        from backend.database import get_engine, Base
+        from backend.models import Card, Deal, DealHistory, PokemonSet
+
+        engine = get_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        return {"status": "success", "message": "All tables created!"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
