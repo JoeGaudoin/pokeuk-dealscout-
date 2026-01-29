@@ -35,3 +35,13 @@ async def create_tables():
         return {"status": "success", "message": "Tables created!"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+# Load API routes
+try:
+    from backend.routes import deals, cards, sets
+    app.include_router(deals.router, prefix="/deals", tags=["Deals"])
+    app.include_router(cards.router, prefix="/cards", tags=["Cards"])
+    app.include_router(sets.router, prefix="/sets", tags=["Sets"])
+except Exception as e:
+    print(f"Route error: {e}")
