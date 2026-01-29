@@ -14,7 +14,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"name": "PokeUK DealScout API", "version": "0.1.0"}
+    return {"name": "PokeUK DealScout API", "version": "2.0.0", "test": "HELLO_JOE"}
 
 
 @app.get("/health")
