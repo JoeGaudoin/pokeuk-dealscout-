@@ -5,12 +5,20 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start background scraper
+    # Startup: Start background scrapers
     from backend.scraper import start_background_scraper
+    from backend.website_scraper import start_website_scraper, PLAYWRIGHT_AVAILABLE
+
     start_background_scraper()
-    print("Background scraper started")
+    print("eBay background scraper started")
+
+    if PLAYWRIGHT_AVAILABLE:
+        start_website_scraper()
+        print("Website scrapers started (Magic Madhouse, Chaos Cards)")
+    else:
+        print("Playwright not available - website scrapers disabled")
+
     yield
-    # Shutdown
     print("Shutting down")
 
 
@@ -68,13 +76,30 @@ async def run_scraper():
 
 @app.get("/scraper-status")
 async def scraper_status():
-    """Check if eBay scraper is configured."""
+    """Check scraper status."""
     import os
+    from backend.website_scraper import PLAYWRIGHT_AVAILABLE
+
     return {
         "ebay_configured": bool(os.getenv("EBAY_APP_ID") and os.getenv("EBAY_CERT_ID")),
-        "ebay_app_id_set": bool(os.getenv("EBAY_APP_ID")),
-        "ebay_cert_id_set": bool(os.getenv("EBAY_CERT_ID")),
+        "website_scrapers_available": PLAYWRIGHT_AVAILABLE,
+        "scrapers": ["magicmadhouse", "chaoscards"] if PLAYWRIGHT_AVAILABLE else [],
     }
+
+
+@app.get("/run-website-scrapers")
+async def run_website_scrapers_endpoint():
+    """Manually trigger website scrapers (Magic Madhouse, Chaos Cards)."""
+    try:
+        from backend.website_scraper import run_website_scrapers, PLAYWRIGHT_AVAILABLE
+
+        if not PLAYWRIGHT_AVAILABLE:
+            return {"status": "error", "message": "Playwright not available"}
+
+        result = await run_website_scrapers()
+        return {"status": "success", **result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 # Load API routes
