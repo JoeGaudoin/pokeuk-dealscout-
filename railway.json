@@ -6,8 +6,7 @@
     "watchPatterns": ["backend/**"]
   },
   "deploy": {
-    "startCommand": "uvicorn backend.main:app --host 0.0.0.0 --port $PORT",
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 60
+    "healthcheckTimeout": 120
   }
 }
